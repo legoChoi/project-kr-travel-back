@@ -1,33 +1,32 @@
 package com.project.travel.domain.auth.service;
 
 import com.project.travel.common.security.JwtTokenProvider;
+import com.project.travel.domain.auth.dto.request.AuthReissueRequest;
 import com.project.travel.domain.auth.dto.request.AuthSignInRequest;
 import com.project.travel.domain.auth.dto.request.AuthSignUpRequest;
+import com.project.travel.domain.auth.dto.response.AuthReissueResponse;
 import com.project.travel.domain.auth.dto.response.AuthSignInResponse;
 import com.project.travel.domain.auth.dto.response.AuthSignUpResponse;
 import com.project.travel.domain.auth.repository.AuthRedisRepository;
 import com.project.travel.domain.user.entity.User;
 import com.project.travel.domain.user.entity.UserRole;
-import com.project.travel.domain.user.repository.UserRepository;
 import com.project.travel.domain.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class AuthServiceTest {
+class AuthServiceUnitTest {
 
     @Mock
     JwtTokenProvider jwtTokenProvider;
@@ -44,6 +43,7 @@ class AuthServiceTest {
     @InjectMocks
     AuthService authService;
 
+    Long userId = 1L;
     String email = "email@email.com";
     String password = "password";
     String nickname = "nickname";
@@ -126,5 +126,47 @@ class AuthServiceTest {
         verify(jwtTokenProvider, times(1)).generateRefreshToken();
         verify(authRedisRepository, times(1))
                 .saveRefreshToken(String.valueOf(user.getId()), refreshToken);
+    }
+
+    @Test
+    @DisplayName("재발급")
+    void reissue() {
+        String newAccessToken = "newAccessToken";
+        String newRefreshToken = "newRefreshToken";
+
+        // given
+        AuthReissueRequest request = new AuthReissueRequest(
+                refreshToken
+        );
+
+        User user = User.builder()
+                .id(userId)
+                .email(email)
+                .password(encodedPassword)
+                .role(UserRole.USER)
+                .build();
+
+        when(authRedisRepository.getUserIdFromRefreshToken(refreshToken))
+                .thenReturn(Optional.of(String.valueOf(userId)));
+        when(userService.findById(userId)).thenReturn(user);
+        when(jwtTokenProvider.generateAccessToken(String.valueOf(userId), user.getRole().getValue()))
+                .thenReturn(newAccessToken);
+        when(jwtTokenProvider.generateRefreshToken()).thenReturn(newRefreshToken);
+
+        // when
+        AuthReissueResponse response = authService.reissue(request);
+
+        // then
+        assertThat(response.accessToken()).isEqualTo(newAccessToken);
+        assertThat(response.refreshToken()).isEqualTo(newRefreshToken);
+
+        verify(authRedisRepository, times(1)).getUserIdFromRefreshToken(refreshToken);
+        verify(userService, times(1)).findById(userId);
+        verify(authRedisRepository, times(1)).deleteRefreshToken(refreshToken);
+        verify(jwtTokenProvider, times(1))
+                .generateAccessToken(String.valueOf(userId), user.getRole().getValue());
+        verify(jwtTokenProvider, times(1)).generateRefreshToken();
+        verify(authRedisRepository, times(1))
+                .saveRefreshToken(String.valueOf(userId), newRefreshToken);
     }
 }
