@@ -12,6 +12,7 @@ import com.project.travel.domain.user.entity.User;
 import com.project.travel.domain.user.entity.UserRole;
 import com.project.travel.domain.user.service.UserService;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,6 +26,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@DisplayName("[api/auth] - 단위 테스트")
 @ExtendWith(MockitoExtension.class)
 class AuthServiceUnitTest {
 
@@ -53,120 +55,135 @@ class AuthServiceUnitTest {
     String accessToken = "accessToken";
     String refreshToken = "refreshToken";
 
-    @Test
-    @DisplayName("[api/auth/signup] - 회원 가입 성공")
-    void signUp() {
-        // given
-        AuthSignUpRequest request = new AuthSignUpRequest(
-                email,
-                password,
-                nickname,
-                name,
-                phone
-        );
+    @Nested
+    @DisplayName("[/signup] - 회원가입")
+    class SignUpTest {
 
-        User user = request.toEntity(encodedPassword);
+        @Test
+        @DisplayName("성공")
+        void signUp() {
+            // given
+            AuthSignUpRequest request = new AuthSignUpRequest(
+                    email,
+                    password,
+                    nickname,
+                    name,
+                    phone
+            );
 
-        when(userService.existsByEmail(request.email())).thenReturn(false);
-        when(bCryptPasswordEncoder.encode(request.password())).thenReturn(encodedPassword);
-        when(userService.save(any(User.class))).thenReturn(user);
-        when(jwtTokenProvider.generateAccessToken(String.valueOf(user.getId()), user.getRole().getValue()))
-                .thenReturn(accessToken);
-        when(jwtTokenProvider.generateRefreshToken()).thenReturn(refreshToken);
+            User user = request.toEntity(encodedPassword);
 
-        // when
-        AuthSignUpResponse response = authService.signUp(request);
+            when(userService.existsByEmail(request.email())).thenReturn(false);
+            when(bCryptPasswordEncoder.encode(request.password())).thenReturn(encodedPassword);
+            when(userService.save(any(User.class))).thenReturn(user);
+            when(jwtTokenProvider.generateAccessToken(String.valueOf(user.getId()), user.getRole().getValue()))
+                    .thenReturn(accessToken);
+            when(jwtTokenProvider.generateRefreshToken()).thenReturn(refreshToken);
 
-        // then
-        assertThat(response.accessToken()).isEqualTo(accessToken);
-        assertThat(response.refreshToken()).isEqualTo(refreshToken);
+            // when
+            AuthSignUpResponse response = authService.signUp(request);
 
-        verify(userService, times(1)).existsByEmail(request.email());
-        verify(bCryptPasswordEncoder, times(1)).encode(request.password());
-        verify(userService, times(1)).save(any(User.class));
-        verify(jwtTokenProvider, times(1))
-                .generateAccessToken(String.valueOf(user.getId()), user.getRole().getValue());
-        verify(jwtTokenProvider, times(1)).generateRefreshToken();
-        verify(authRedisRepository, times(1))
-                .saveRefreshToken(String.valueOf(user.getId()), refreshToken);
+            // then
+            assertThat(response.accessToken()).isEqualTo(accessToken);
+            assertThat(response.refreshToken()).isEqualTo(refreshToken);
+
+            verify(userService, times(1)).existsByEmail(request.email());
+            verify(bCryptPasswordEncoder, times(1)).encode(request.password());
+            verify(userService, times(1)).save(any(User.class));
+            verify(jwtTokenProvider, times(1))
+                    .generateAccessToken(String.valueOf(user.getId()), user.getRole().getValue());
+            verify(jwtTokenProvider, times(1)).generateRefreshToken();
+            verify(authRedisRepository, times(1))
+                    .saveRefreshToken(String.valueOf(user.getId()), refreshToken);
+        }
     }
 
-    @Test
-    @DisplayName("[api/auth/signin] - 로그인 성공")
-    void signIn() {
-        // given
-        AuthSignInRequest request = new AuthSignInRequest(
-                email,
-                password
-        );
+    @Nested
+    @DisplayName("[/signin] - 로그인")
+    class SignInTest {
 
-        User user = User.builder()
-                .email(email)
-                .password(encodedPassword)
-                .role(UserRole.USER)
-                .build();
+        @Test
+        @DisplayName("성공")
+        void signIn() {
+            // given
+            AuthSignInRequest request = new AuthSignInRequest(
+                    email,
+                    password
+            );
 
-        when(userService.findByEmail(request.email())).thenReturn(user);
-        when(bCryptPasswordEncoder.matches(request.password(), encodedPassword)).thenReturn(true);
-        when(jwtTokenProvider.generateAccessToken(String.valueOf(user.getId()), user.getRole().getValue()))
-                .thenReturn(accessToken);
-        when(jwtTokenProvider.generateRefreshToken()).thenReturn(refreshToken);
+            User user = User.builder()
+                    .email(email)
+                    .password(encodedPassword)
+                    .role(UserRole.USER)
+                    .build();
 
-        // when
-        AuthSignInResponse response = authService.signIn(request);
+            when(userService.findByEmail(request.email())).thenReturn(user);
+            when(bCryptPasswordEncoder.matches(request.password(), encodedPassword)).thenReturn(true);
+            when(jwtTokenProvider.generateAccessToken(String.valueOf(user.getId()), user.getRole().getValue()))
+                    .thenReturn(accessToken);
+            when(jwtTokenProvider.generateRefreshToken()).thenReturn(refreshToken);
 
-        // then
-        assertThat(response.accessToken()).isEqualTo(accessToken);
-        assertThat(response.refreshToken()).isEqualTo(refreshToken);
+            // when
+            AuthSignInResponse response = authService.signIn(request);
 
-        verify(userService, times(1)).findByEmail(email);
-        verify(bCryptPasswordEncoder, times(1)).matches(request.password(), encodedPassword);
-        verify(jwtTokenProvider, times(1))
-                .generateAccessToken(String.valueOf(user.getId()), user.getRole().getValue());
-        verify(jwtTokenProvider, times(1)).generateRefreshToken();
-        verify(authRedisRepository, times(1))
-                .saveRefreshToken(String.valueOf(user.getId()), refreshToken);
+            // then
+            assertThat(response.accessToken()).isEqualTo(accessToken);
+            assertThat(response.refreshToken()).isEqualTo(refreshToken);
+
+            verify(userService, times(1)).findByEmail(email);
+            verify(bCryptPasswordEncoder, times(1)).matches(request.password(), encodedPassword);
+            verify(jwtTokenProvider, times(1))
+                    .generateAccessToken(String.valueOf(user.getId()), user.getRole().getValue());
+            verify(jwtTokenProvider, times(1)).generateRefreshToken();
+            verify(authRedisRepository, times(1))
+                    .saveRefreshToken(String.valueOf(user.getId()), refreshToken);
+        }
     }
 
-    @Test
-    @DisplayName("재발급")
-    void reissue() {
-        String newAccessToken = "newAccessToken";
-        String newRefreshToken = "newRefreshToken";
+    @Nested
+    @DisplayName("[/reissue] - 재발급")
+    class ReissueTest {
 
-        // given
-        AuthReissueRequest request = new AuthReissueRequest(
-                refreshToken
-        );
+        @Test
+        @DisplayName("성공")
+        void reissue() {
+            String newAccessToken = "newAccessToken";
+            String newRefreshToken = "newRefreshToken";
 
-        User user = User.builder()
-                .id(userId)
-                .email(email)
-                .password(encodedPassword)
-                .role(UserRole.USER)
-                .build();
+            // given
+            AuthReissueRequest request = new AuthReissueRequest(
+                    refreshToken
+            );
 
-        when(authRedisRepository.getUserIdFromRefreshToken(refreshToken))
-                .thenReturn(Optional.of(String.valueOf(userId)));
-        when(userService.findById(userId)).thenReturn(user);
-        when(jwtTokenProvider.generateAccessToken(String.valueOf(userId), user.getRole().getValue()))
-                .thenReturn(newAccessToken);
-        when(jwtTokenProvider.generateRefreshToken()).thenReturn(newRefreshToken);
+            User user = User.builder()
+                    .id(userId)
+                    .email(email)
+                    .password(encodedPassword)
+                    .role(UserRole.USER)
+                    .build();
 
-        // when
-        AuthReissueResponse response = authService.reissue(request);
+            when(authRedisRepository.getUserIdFromRefreshToken(refreshToken))
+                    .thenReturn(Optional.of(String.valueOf(userId)));
+            when(userService.findById(userId)).thenReturn(user);
+            when(jwtTokenProvider.generateAccessToken(String.valueOf(userId), user.getRole().getValue()))
+                    .thenReturn(newAccessToken);
+            when(jwtTokenProvider.generateRefreshToken()).thenReturn(newRefreshToken);
 
-        // then
-        assertThat(response.accessToken()).isEqualTo(newAccessToken);
-        assertThat(response.refreshToken()).isEqualTo(newRefreshToken);
+            // when
+            AuthReissueResponse response = authService.reissue(request);
 
-        verify(authRedisRepository, times(1)).getUserIdFromRefreshToken(refreshToken);
-        verify(userService, times(1)).findById(userId);
-        verify(authRedisRepository, times(1)).deleteRefreshToken(refreshToken);
-        verify(jwtTokenProvider, times(1))
-                .generateAccessToken(String.valueOf(userId), user.getRole().getValue());
-        verify(jwtTokenProvider, times(1)).generateRefreshToken();
-        verify(authRedisRepository, times(1))
-                .saveRefreshToken(String.valueOf(userId), newRefreshToken);
+            // then
+            assertThat(response.accessToken()).isEqualTo(newAccessToken);
+            assertThat(response.refreshToken()).isEqualTo(newRefreshToken);
+
+            verify(authRedisRepository, times(1)).getUserIdFromRefreshToken(refreshToken);
+            verify(userService, times(1)).findById(userId);
+            verify(authRedisRepository, times(1)).deleteRefreshToken(refreshToken);
+            verify(jwtTokenProvider, times(1))
+                    .generateAccessToken(String.valueOf(userId), user.getRole().getValue());
+            verify(jwtTokenProvider, times(1)).generateRefreshToken();
+            verify(authRedisRepository, times(1))
+                    .saveRefreshToken(String.valueOf(userId), newRefreshToken);
+        }
     }
 }
